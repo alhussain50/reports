@@ -1,0 +1,8 @@
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../../../lib/internal/Magento/Framework/ObjectManager/etc/config.xsd">
+    <type name="Magento\Framework\View\Asset\Minification">
+        <plugin name="preventIntersectionObserverJsMinification" type="Harriswebworks\Reports\Plugin\View\MinificationPlugin" />
+    </type>	
+    <preference for="Magento\Catalog\Model\ResourceModel\Product\Collection" type="Harriswebworks\Reports\Model\ResourceModel\Product\Collection" />
+    <preference for="Magento\Reports\Model\Product\DataRetriever" type="Harriswebworks\Reports\Model\Product\DataRetriever" />
+    <preference for="Magento\Reports\Model\ResourceModel\Quote\Item\Collection" type="Harriswebworks\Reports\Model\ResourceModel\Quote\Item\Collection" />
+</config>
