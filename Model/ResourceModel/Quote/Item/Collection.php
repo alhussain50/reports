@@ -3,11 +3,13 @@
 namespace Harriswebworks\Reports\Model\ResourceModel\Quote\Item;
 
 use Magento\Reports\Model\ResourceModel\Quote\Item\Collection as ItemCollection;
+use Magento\Catalog\Model\CategoryFactory;
 use Magento\Reports\Model\Product\DataRetriever as ProductDataRetriever;
 use Magento\Framework\App\ObjectManager;
-
 class Collection extends ItemCollection
 {
+    protected $categoryFactory;
+
     /**
      * @var \Magento\Catalog\Model\ResourceModel\Product\Collection
      */
@@ -27,8 +29,10 @@ class Collection extends ItemCollection
      * @var ProductDataRetriever
      */
     private $productDataRetriever;
+    protected $categoryData = array();
 
     public function __construct(
+        CategoryFactory $categoryFactory,
         \Magento\Framework\Data\Collection\EntityFactory $entityFactory,
         \Psr\Log\LoggerInterface $logger,
         \Magento\Framework\Data\Collection\Db\FetchStrategyInterface $fetchStrategy,
@@ -51,8 +55,26 @@ class Collection extends ItemCollection
             $connection,
             $resource,
         );
+        $this->categoryFactory = $categoryFactory;
         $this->productDataRetriever = $productDataRetriever
             ?? ObjectManager::getInstance()->get(ProductDataRetriever::class);
+    }
+
+    public function getCategoryNamesfromIds($categoryIds)
+    {
+        $categoryNames = [];
+
+        $categories = $this->categoryFactory->create()->getCollection()
+            ->addAttributeToSelect('name') 
+            ->addAttributeToFilter('entity_id', ['in' => $categoryIds]); 
+
+        foreach ($categories as $category) {
+            $categoryId = $category->getId();
+            $categoryName = $category->getName();
+
+            $categoryNames[$categoryId] = $categoryName;
+        }
+        return $categoryNames;
     }
 
     protected function _afterLoad()
@@ -70,7 +92,8 @@ class Collection extends ItemCollection
             if (isset($productData[$item->getProductId()])) {
                 $item->setPrice($productData[$item->getProductId()]['price'] * $item->getBaseToGlobalRate());
                 $item->setName($productData[$item->getProductId()]['name']);
-                $item->setCategoryIds(implode('#', $productData[$item->getProductId()]['category_ids']));
+                $categoryIds = $productData[$item->getProductId()]['category_ids'];
+                $item->setCategoryNames(implode(',', $this->getCategoryNamesfromIds($categoryIds)));
             }
             $item->setOrders(0);
             if (isset($orderData[$item->getProductId()])) {
