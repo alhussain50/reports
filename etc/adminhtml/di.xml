@@ -5,4 +5,5 @@
     <preference for="Magento\Catalog\Model\ResourceModel\Product\Collection" type="Harriswebworks\Reports\Model\ResourceModel\Product\Collection" />
     <preference for="Magento\Reports\Model\Product\DataRetriever" type="Harriswebworks\Reports\Model\Product\DataRetriever" />
     <preference for="Magento\Reports\Model\ResourceModel\Quote\Item\Collection" type="Harriswebworks\Reports\Model\ResourceModel\Quote\Item\Collection" />
+    <preference for="Magento\Reports\Block\Adminhtml\Shopcart\Product\Grid" type="Harriswebworks\Reports\Block\Adminhtml\Shopcart\Product\Grid" />
 </config>
