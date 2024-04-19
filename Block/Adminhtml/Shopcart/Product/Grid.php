@@ -135,7 +135,7 @@ class Grid extends \Magento\Reports\Block\Adminhtml\Grid\Shopcart
         $this->addColumn(
             'created_at',
             [
-                'header' => __('created_at'),
+                'header' => __('Created At'),
                 'index' => 'created_at',
                 'sortable' => false,
                 'header_css_class' => 'col-product',
@@ -146,7 +146,7 @@ class Grid extends \Magento\Reports\Block\Adminhtml\Grid\Shopcart
         $this->addColumn(
             'customer_id',
             [
-                'header' => __('customer_id'),
+                'header' => __('Customer ID'),
                 'index' => 'customer_id',
                 'sortable' => false,
                 'header_css_class' => 'col-product',

@@ -1,38 +1,24 @@
 <?php
-
 namespace Harriswebworks\Reports\Model\ResourceModel\Quote\Item;
 
 use Magento\Reports\Model\ResourceModel\Quote\Item\Collection as ItemCollection;
-use Magento\Catalog\Model\CategoryFactory;
-use Magento\Reports\Model\Product\DataRetriever as ProductDataRetriever;
-use Magento\Framework\App\ObjectManager;
+use Harriswebworks\Reports\Model\Product\DataRetriever as ProductDataRetriever;
+use Magento\Catalog\Model\ResourceModel\Category\CollectionFactory; 
+
 class Collection extends ItemCollection
 {
-    protected $categoryFactory;
+    private const PREPARED_FLAG_NAME = 'reports_collection_prepared';
 
-    /**
-     * @var \Magento\Catalog\Model\ResourceModel\Product\Collection
-     */
-    protected $productResource;
+    protected $categoryCollection;
+    protected $categoryList=array();
 
-    /**
-     * @var \Magento\Customer\Model\ResourceModel\Customer
-     */
-    protected $customerResource;
-
-    /**
-     * @var \Magento\Sales\Model\ResourceModel\Order\Collection
-     */
-    protected $orderResource;
 
     /**
      * @var ProductDataRetriever
      */
     private $productDataRetriever;
-    protected $categoryData = array();
 
     public function __construct(
-        CategoryFactory $categoryFactory,
         \Magento\Framework\Data\Collection\EntityFactory $entityFactory,
         \Psr\Log\LoggerInterface $logger,
         \Magento\Framework\Data\Collection\Db\FetchStrategyInterface $fetchStrategy,
@@ -40,9 +26,11 @@ class Collection extends ItemCollection
         \Magento\Catalog\Model\ResourceModel\Product\Collection $productResource,
         \Magento\Customer\Model\ResourceModel\Customer $customerResource,
         \Magento\Sales\Model\ResourceModel\Order\Collection $orderResource,
+        ProductDataRetriever $productDataRetriever,
+        CollectionFactory $categoryCollection,
         \Magento\Framework\DB\Adapter\AdapterInterface $connection = null,
         \Magento\Framework\Model\ResourceModel\Db\AbstractDb $resource = null,
-        ?ProductDataRetriever $productDataRetriever = null
+       
     ) {
         parent::__construct(
             $entityFactory,
@@ -53,32 +41,71 @@ class Collection extends ItemCollection
             $customerResource,
             $orderResource,
             $connection,
-            $resource,
+            $resource
         );
-        $this->categoryFactory = $categoryFactory;
-        $this->productDataRetriever = $productDataRetriever
-            ?? ObjectManager::getInstance()->get(ProductDataRetriever::class);
+
+        $this->productDataRetriever = $productDataRetriever;
+        $this->categoryCollection = $categoryCollection;
     }
 
-    public function getCategoryNamesfromIds($categoryIds)
+    public function prepareActiveCartItems()
     {
-        $categoryNames = [];
+        $quoteItemsSelect = $this->getSelect();
 
-        $categories = $this->categoryFactory->create()->getCollection()
-            ->addAttributeToSelect('name') 
-            ->addAttributeToFilter('entity_id', ['in' => $categoryIds]); 
+        if ($this->getFlag(self::PREPARED_FLAG_NAME)) {
+            return $quoteItemsSelect;
+        }
+
+        $quoteItemsSelect->reset()
+            ->from(['main_table' => $this->getTable('quote_item')], '')
+            ->columns(['main_table.product_id', 'main_table.name'])
+            ->columns(['carts' => new \Zend_Db_Expr('COUNT(main_table.item_id)')])
+            ->columns('quote.base_to_global_rate')
+            ->columns('quote.customer_id')//add customer id
+            ->columns('quote.created_at')//add customer id
+
+            ->joinInner(
+                ['quote' => $this->getTable('quote')],
+                'main_table.quote_id = quote.entity_id',
+                null
+            )->where(
+                'quote.is_active = ?',
+                1
+            )->group(
+                'main_table.product_id'
+            );
+        $this->setFlag(self::PREPARED_FLAG_NAME, true);
+
+        return $quoteItemsSelect;
+    }
+
+    private function setCategoryCollection(){
+
+        $categories = $this->categoryCollection->create();
+        $categories->addAttributeToSelect('*');
 
         foreach ($categories as $category) {
-            $categoryId = $category->getId();
-            $categoryName = $category->getName();
+            //echo $category->getId().' => '.$category->getName() . '<br />';
+            $this->categoryList[$category->getId()] = $category->getName();
+         }
 
-            $categoryNames[$categoryId] = $categoryName;
-        }
-        return $categoryNames;
     }
 
+
+    public function getCategoryName($ids) {
+        $names=[];
+        foreach($ids as $id){
+            if( $id>2 && array_key_exists($id,$this->categoryList) && $this->categoryList[$id]){
+                $names[]=$this->categoryList[$id];
+            }
+            
+        }
+        return implode(',',$names);
+        
+    }
     protected function _afterLoad()
     {
+        $this->setCategoryCollection(); //preapare category list
         parent::_afterLoad();
         $items = $this->getItems();
         $productIds = [];
@@ -92,8 +119,10 @@ class Collection extends ItemCollection
             if (isset($productData[$item->getProductId()])) {
                 $item->setPrice($productData[$item->getProductId()]['price'] * $item->getBaseToGlobalRate());
                 $item->setName($productData[$item->getProductId()]['name']);
-                $categoryIds = $productData[$item->getProductId()]['category_ids'];
-                $item->setCategoryNames(implode(',', $this->getCategoryNamesfromIds($categoryIds)));
+
+                $categoryNames= $this->getCategoryName($productData[$item->getProductId()]['category_ids']);
+
+                $item->setCategoryNames($categoryNames); //@todo
             }
             $item->setOrders(0);
             if (isset($orderData[$item->getProductId()])) {
@@ -103,4 +132,6 @@ class Collection extends ItemCollection
 
         return $this;
     }
+    
+
 }
